@@ -1,7 +1,12 @@
 
 using AutoMapper;
 using Mango.Services.CouponAPI.Data;
+using Mango.Services.CouponAPI.Extensions;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
+using System.Text;
 
 namespace Mango.Services.CouponAPI
 {
@@ -24,7 +29,32 @@ namespace Mango.Services.CouponAPI
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen(option =>
+            {
+                option.AddSecurityDefinition(name: JwtBearerDefaults.AuthenticationScheme, securityScheme: new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Description = "Enter the Bearer Authorization string as following: `Bearer Generated-JWT-Token`",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer"
+                });
+                option.AddSecurityRequirement(document =>
+                    new OpenApiSecurityRequirement
+                    {
+                        [
+                            new OpenApiSecuritySchemeReference
+                            (
+                                JwtBearerDefaults.AuthenticationScheme,
+                                document
+                            )
+                        ] = []
+                    });
+            });
+
+            builder.AddAppAuthentication();
+
+            builder.Services.AddAuthorization();
 
             builder.Services.AddCors(options =>
             {
@@ -51,6 +81,8 @@ namespace Mango.Services.CouponAPI
             // CORS must come before Authorization
             app.UseCors("AllowAll");
 
+            app.UseAuthentication();
+
             app.UseAuthorization();
 
             app.MapControllers();
@@ -65,7 +97,7 @@ namespace Mango.Services.CouponAPI
                 {
                     var _db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                    if(_db.Database.GetMigrations().Count() > 0)
+                    if (_db.Database.GetMigrations().Count() > 0)
                     {
                         _db.Database.Migrate();
                     }
